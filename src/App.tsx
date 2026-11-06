@@ -1,96 +1,48 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { BacktestPanel } from './components/BacktestPanel.tsx'
-import { FeeChart } from './components/FeeChart.tsx'
-import { SimBar } from './components/SimBar.tsx'
-import { SwapTable } from './components/SwapTable.tsx'
-import { DEFAULT_CFG } from './lib/fee.ts'
-import { fetchLiveSwaps, readLiveConfig } from './lib/live.ts'
-import { generateMockSwaps } from './lib/mock.ts'
+import { FeeEvents } from './components/FeeEvents.tsx'
+import { NotDeployed } from './components/NotDeployed.tsx'
+import { StatusBar } from './components/StatusBar.tsx'
+import { WalletButton } from './components/WalletButton.tsx'
 import { loadBacktest } from './lib/results.ts'
 import type { BacktestFile } from './lib/backtest.ts'
 import { MarketProvider } from './lib/market/Provider.tsx'
 import { useMarket } from './lib/market/context.ts'
-import { usd } from './lib/market/format.ts'
 import { Flows } from './pages/Flows.tsx'
 import { Landing } from './pages/Landing.tsx'
 import { Liquidity } from './pages/Liquidity.tsx'
 import { Markets } from './pages/Markets.tsx'
 import { MintRedeem } from './pages/MintRedeem.tsx'
 import { Trade } from './pages/Trade.tsx'
-import type { Mode, SwapRow } from './lib/types.ts'
 import { BRAND } from './brand.ts'
 import { LogoMark } from './components/Logo.tsx'
 
-type Tab = 'markets' | 'trade' | 'mint' | 'lp' | 'flows' | 'live' | 'swaps' | 'backtest'
+type Tab = 'markets' | 'trade' | 'mint' | 'lp' | 'flows' | 'fees' | 'backtest'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'markets', label: 'Explore' },
   { id: 'trade', label: 'Trade' },
   { id: 'mint', label: 'Mint & redeem' },
   { id: 'lp', label: 'Liquidity' },
-  { id: 'flows', label: 'Flows' },
-  { id: 'live', label: 'Fee curve' },
-  { id: 'swaps', label: 'Swap log' },
+  { id: 'flows', label: 'Activity' },
+  { id: 'fees', label: 'Fee events' },
   { id: 'backtest', label: 'Backtest' },
 ]
-const OLD_TABS: Tab[] = ['live', 'swaps']
 
 function Dashboard({ onHome }: { onHome: () => void }) {
   const [tab, setTab] = useState<Tab>('markets')
-  const [sym, setSym] = useState('NVDA')
+  const [sym, setSym] = useState('')
   const [query, setQuery] = useState('')
-  const { state } = useMarket()
-  const [mode, setMode] = useState<Mode>(import.meta.env.VITE_MODE === 'live' ? 'live' : 'replay')
+  const { state, engine, deployment } = useMarket()
   const [results, setResults] = useState<BacktestFile | null>(null)
-
-  const mock = useMemo(() => generateMockSwaps(DEFAULT_CFG), [])
-  const [cursor, setCursor] = useState(0)
-  const [playing, setPlaying] = useState(false)
-  const timer = useRef<number | undefined>(undefined)
-
-  const [liveRows, setLiveRows] = useState<SwapRow[]>([])
-  const [liveMsg, setLiveMsg] = useState('')
-  const liveCfg = useMemo(() => readLiveConfig(), [])
 
   useEffect(() => {
     void loadBacktest().then(setResults)
   }, [])
 
-  useEffect(() => {
-    if (!playing) return
-    timer.current = window.setInterval(() => {
-      setCursor((c) => {
-        if (c >= mock.length) {
-          setPlaying(false)
-          return c
-        }
-        return c + 1
-      })
-    }, 350)
-    return () => window.clearInterval(timer.current)
-  }, [playing, mock.length])
-
-  const loadLive = useCallback(async () => {
-    if (!liveCfg) {
-      setLiveMsg('Live mode needs VITE_RPC_URL, VITE_HOOK_ADDRESS and VITE_POOL_ID. Showing nothing; switch to replay.')
-      return
-    }
-    setLiveMsg('Loading FeeSet logs...')
-    try {
-      const rows = await fetchLiveSwaps(liveCfg, DEFAULT_CFG)
-      setLiveRows(rows)
-      setLiveMsg(rows.length === 0 ? 'No FeeSet events in the block range yet.' : '')
-    } catch (e) {
-      setLiveMsg(`Live fetch failed: ${e instanceof Error ? e.message : String(e)}`)
-    }
-  }, [liveCfg])
-
-  useEffect(() => {
-    if (mode === 'live') void loadLive()
-  }, [mode, loadLive])
-
-  const rows = mode === 'replay' ? mock.slice(0, cursor) : liveRows
-  const armedCount = rows.filter((r) => r.armed).length
+  // default to the first ticker the deployment actually has
+  const active = sym && engine?.syms.includes(sym) ? sym : (engine?.syms[0] ?? '')
+  const live = deployment.status === 'ready' && state.ready
 
   return (
     <div className="ap">
@@ -119,84 +71,45 @@ function Dashboard({ onHome }: { onHome: () => void }) {
             }}
           />
         </label>
-        <span className="ap-wallet" title="Test wallet balance">{usd(state.wallet.usdc, 2)} tUSDC</span>
+        <WalletButton />
         <a className="ap-home" href="/" onClick={(e) => { e.preventDefault(); onHome() }}>Home</a>
       </header>
 
       <main>
         {tab === 'backtest' ? (
           <div className="banner">
-            BACKTEST: real Ondo-token swaps on Ethereum replayed against the fee rule (backtest/results.json). Not live and
-            not on a testnet.
-          </div>
-        ) : OLD_TABS.includes(tab) ? (
-          <div className={mode === 'replay' ? 'banner mock' : 'banner'}>
-            {mode === 'replay'
-              ? 'REPLAY MODE: mock data generated in the browser. Not market data, no chain connection.'
-              : 'LIVE MODE: FeeSet events read from the configured RPC. Size and direction are not in the event.'}
+            HISTORICAL BACKTEST: real Ondo-token swaps on Ethereum replayed against the fee rule (server/backtest/results.json). Not live and
+            not on Arc Testnet.
           </div>
         ) : (
-          <details className="ap-sim">
-            <summary>
-              <i className={state.mode === 'mock' ? 'mock' : ''} aria-hidden="true" />
-              <span>{state.sourceNote}</span>
-              <em>Simulator</em>
-            </summary>
-            <SimBar hideBanner />
-          </details>
+          <StatusBar />
         )}
-        {OLD_TABS.includes(tab) && (
-          <div className="controls ap-replay">
-            <button type="button" aria-pressed={mode === 'replay'} onClick={() => setMode('replay')}>Replay</button>
-            <button type="button" aria-pressed={mode === 'live'} onClick={() => setMode('live')}>Live</button>
-            {mode === 'replay' ? (
-              <>
-                <button type="button" onClick={() => setPlaying((p) => !p)}>{playing ? 'Pause' : cursor >= mock.length ? 'Done' : 'Play'}</button>
-                <button type="button" onClick={() => { setPlaying(false); setCursor(0) }}>Reset</button>
-                <button type="button" onClick={() => setCursor(mock.length)}>Show all</button>
-              </>
-            ) : (
-              <button type="button" onClick={() => void loadLive()}>Refresh</button>
+
+        {tab === 'backtest' ? (
+          <section aria-label="Backtest results">
+            <BacktestPanel results={results} />
+          </section>
+        ) : !live ? (
+          <NotDeployed onBacktest={() => setTab('backtest')} />
+        ) : (
+          <>
+            {tab === 'markets' && (
+              <Markets
+                query={query}
+                onTrade={(s) => {
+                  setSym(s)
+                  setTab('trade')
+                }}
+              />
             )}
-          </div>
+            {tab === 'trade' && <Trade sym={active} onSym={setSym} />}
+            {tab === 'mint' && <MintRedeem sym={active} onSym={setSym} />}
+            {tab === 'lp' && <Liquidity sym={active} onSym={setSym} />}
+            {tab === 'flows' && <Flows />}
+            {tab === 'fees' && <FeeEvents />}
+          </>
         )}
-
-      {OLD_TABS.includes(tab) && mode === 'live' && liveMsg && <p role="status">{liveMsg}</p>}
-
-      {tab === 'markets' && (
-        <Markets
-          query={query}
-          onTrade={(s) => {
-            setSym(s)
-            setTab('trade')
-          }}
-        />
-      )}
-      {tab === 'trade' && <Trade sym={sym} onSym={setSym} />}
-      {tab === 'mint' && <MintRedeem sym={sym} onSym={setSym} />}
-      {tab === 'lp' && <Liquidity sym={sym} onSym={setSym} />}
-      {tab === 'flows' && <Flows />}
-
-      {tab === 'live' && (
-        <section aria-label="Fee versus deviation">
-          <p>
-            {rows.length} swaps shown, {armedCount} surcharged ({rows.length ? ((armedCount / rows.length) * 100).toFixed(1) : '0.0'}%).
-            Each dot is one swap; larger dots paid a surcharge.
-          </p>
-          <FeeChart rows={rows} cfg={DEFAULT_CFG} />
-        </section>
-      )}
-      {tab === 'swaps' && (
-        <section aria-label="Swaps">
-          <SwapTable rows={rows} />
-        </section>
-      )}
-      {tab === 'backtest' && (
-        <section aria-label="Backtest results">
-          <BacktestPanel results={results} />
-        </section>
-      )}
-    </main>
+      </main>
     </div>
   )
 }

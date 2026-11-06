@@ -2,7 +2,7 @@ import type { EngineState } from './types.ts'
 
 /** One observation of a stock: taken every time the engine publishes a new state. */
 export interface HistorySample {
-  /** seconds (engine clock: simulated for mock, block time for anvil) */
+  /** seconds (block time) */
   ts: number
   /** oracle reference price */
   ref: number
@@ -13,7 +13,7 @@ export interface HistorySample {
   /** worst-case fee a swap would pay in the hook pool right now, bps */
   feeBps: number
   baseFeeBps: number
-  /** cumulative hook-pool volume in USD (0 if the engine does not report it) */
+  /** hook-pool volume in USD over the loaded event window (0 when none) */
   volume: number
 }
 
@@ -60,7 +60,7 @@ export class HistoryBuf {
   }
 
   record(state: EngineState): void {
-    const ts = state.sim.simTs
+    const ts = state.chainTs
     if (!ts) return
     for (const m of state.markets) {
       this.push(m.sym, {
@@ -71,7 +71,7 @@ export class HistoryBuf {
         devBps: m.hook.devBps,
         feeBps: Math.max(m.hook.feeBuyBps, m.hook.feeSellBps),
         baseFeeBps: m.hook.baseFeeBps,
-        volume: state.summary?.tickers[m.sym]?.hook.volumeUsd ?? 0,
+        volume: m.hook.volumeUsd,
       })
     }
   }

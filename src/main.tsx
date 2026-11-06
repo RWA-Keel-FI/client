@@ -8,9 +8,12 @@ import '@fontsource-variable/source-serif-4/wght.css'
 import '@fontsource-variable/jetbrains-mono/wght.css'
 import './index.css'
 import App from './App.tsx'
+import { Providers } from './Providers.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Providers>
+      <App />
+    </Providers>
   </StrictMode>,
 )

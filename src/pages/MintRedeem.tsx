@@ -1,65 +1,43 @@
 import { useState } from 'react'
+import { TxStatus, useTx } from '../components/Tx.tsx'
+import { ActionGate, useCanTransact } from '../components/WalletButton.tsx'
+import { ARC_FAUCET } from '../lib/chain/arc.ts'
 import { useMarket } from '../lib/market/context.ts'
-import { qty, shortHash, usd } from '../lib/market/format.ts'
-import type { TradeResult } from '../lib/market/types.ts'
-
-function Result({ r, mock }: { r: TradeResult | null; mock: boolean }) {
-  if (!r) return null
-  return (
-    <div role="status" className={r.ok ? 'result ok' : 'result bad'}>
-      {r.ok ? (
-        <>
-          Done{r.filledOut !== undefined ? `: ${qty(r.filledOut, 6)}` : ''}. Tx <code>{shortHash(r.hash ?? '')}</code>
-          {mock ? ' (mock hash, no chain)' : ''}
-        </>
-      ) : (
-        <>Blocked: {r.error}</>
-      )}
-    </div>
-  )
-}
+import { qty, usd } from '../lib/market/format.ts'
 
 export function MintRedeem({ sym, onSym }: { sym: string; onSym: (s: string) => void }) {
   const { engine, state } = useMarket()
   const [mintAmt, setMintAmt] = useState('1000')
   const [redeemAmt, setRedeemAmt] = useState('1')
-  const [rf, setRf] = useState<TradeResult | null>(null)
-  const [rm, setRm] = useState<TradeResult | null>(null)
-  const [rr, setRr] = useState<TradeResult | null>(null)
+  const mintTx = useTx()
+  const redeemTx = useTx()
+  const canTx = useCanTransact()
   const m = state.markets.find((x) => x.sym === sym)
-  const open = m?.sessionOpen ?? true
+  const open = m?.primaryOpen ?? false
   const price = m?.refPriceUsd ?? 0
   const held = state.wallet.tokens[sym] ?? 0
   const mintN = Number(mintAmt)
   const redeemN = Number(redeemAmt)
-  const mock = state.mode === 'mock'
 
   return (
     <section aria-label="Mint and redeem">
       <p className="sub">
-        The tokenization flow: <strong>1</strong> get test money, <strong>2</strong> mint a stock token from the issuer at the
-        oracle price, <strong>3</strong> trade or provide liquidity in the pools, <strong>4</strong> redeem back to tUSDC.
+        The tokenization flow: <strong>1</strong> get test USDC, <strong>2</strong> mint a stock token from the issuer at the
+        oracle price, <strong>3</strong> trade or provide liquidity in the pools, <strong>4</strong> redeem back to USDC.
         Mint and redeem (the primary market) only work while the US session is open. The pools (the secondary market) never
         close.
       </p>
 
       <div className="twocol">
         <div className="panel">
-          <h2>1. Test money</h2>
+          <h2>1. Test USDC</h2>
           <p>
-            tUSDC balance: <strong>{usd(state.wallet.usdc, 2)}</strong>
+            USDC balance: <strong>{canTx ? usd(state.wallet.usdc, 2) : 'connect a wallet'}</strong>
           </p>
-          <button
-            type="button"
-            className="primary"
-            onClick={() => {
-              void engine?.faucet().then(setRf)
-            }}
-          >
-            Faucet: +10,000 tUSDC
-          </button>
-          <Result r={rf} mock={mock} />
-          <p className="sub">tUSDC is a mock stablecoin with no value. Wallet: {state.wallet.address || 'n/a'}</p>
+          <a className="btnlink" href={ARC_FAUCET} target="_blank" rel="noreferrer">Open the Circle faucet</a>
+          <p className="sub">
+            Arc Testnet uses USDC for gas as well. The faucet sends test USDC with no value. Your gas balance: {canTx ? `${qty(state.wallet.native, 4)} USDC` : 'n/a'}.
+          </p>
         </div>
 
         <div className="panel">
@@ -76,7 +54,8 @@ export function MintRedeem({ sym, onSym }: { sym: string; onSym: (s: string) => 
           </label>
           <p>
             Status:{' '}
-            <strong className={open ? undefined : 'surcharge'}>{open ? 'OPEN' : 'CLOSED'}</strong>. Oracle price {usd(price, 2)}.
+            <strong className={open ? undefined : 'surcharge'}>{open ? 'OPEN' : 'CLOSED'}</strong>. Oracle price {usd(price, 2)}
+            {m ? ` (updated ${m.refAgeSec}s ago${m.stale ? ', stale' : ''})` : ''}.
           </p>
           {!open && (
             <p className="why-box">
@@ -93,44 +72,54 @@ export function MintRedeem({ sym, onSym }: { sym: string; onSym: (s: string) => 
           className="panel"
           onSubmit={(e) => {
             e.preventDefault()
-            void engine?.mint(sym, mintN).then(setRm)
+            void mintTx.run((onStep) => engine!.mint(sym, mintN, onStep))
           }}
         >
           <h2>2. Mint t{sym}</h2>
           <label className="field">
-            tUSDC to pay
+            USDC to pay
             <input type="number" min="0" step="any" value={mintAmt} onChange={(e) => setMintAmt(e.target.value)} />
           </label>
           <p>
             You receive about <strong>{price > 0 && mintN > 0 ? qty((mintN * (1 - state.issuerFeeBps / 1e4)) / price, 6) : '0'}</strong> t{sym} at the
             oracle price after the issuer fee ({state.issuerFeeBps} bps). No pool fee.
           </p>
-          <button type="submit" className="primary" disabled={!open || !(mintN > 0)}>
-            Mint
-          </button>
-          <Result r={rm} mock={mock} />
+          {canTx ? (
+            <button type="submit" className="primary" disabled={!open || !(mintN > 0) || mintTx.busy || mintN > state.wallet.usdc}>
+              {mintTx.busy ? 'Confirming...' : 'Mint'}
+            </button>
+          ) : (
+            <ActionGate />
+          )}
+          {canTx && mintN > state.wallet.usdc && <p role="alert" className="err">Not enough USDC.</p>}
+          <TxStatus busy={mintTx.busy} step={mintTx.step} result={mintTx.result} unit={`t${sym}`} verb="Minted" />
         </form>
 
         <form
           className="panel"
           onSubmit={(e) => {
             e.preventDefault()
-            void engine?.redeem(sym, redeemN).then(setRr)
+            void redeemTx.run((onStep) => engine!.redeem(sym, redeemN, onStep))
           }}
         >
           <h2>4. Redeem t{sym}</h2>
           <label className="field">
-            t{sym} to redeem (you hold {qty(held)})
+            t{sym} to redeem{canTx ? ` (you hold ${qty(held)})` : ''}
             <input type="number" min="0" step="any" value={redeemAmt} onChange={(e) => setRedeemAmt(e.target.value)} />
           </label>
           <p>
-            You receive about <strong>{price > 0 && redeemN > 0 ? usd(redeemN * price * (1 - state.issuerFeeBps / 1e4), 2) : '$0.00'}</strong> tUSDC after
+            You receive about <strong>{price > 0 && redeemN > 0 ? usd(redeemN * price * (1 - state.issuerFeeBps / 1e4), 2) : '$0.00'}</strong> USDC after
             the issuer fee ({state.issuerFeeBps} bps).
           </p>
-          <button type="submit" className="primary" disabled={!open || !(redeemN > 0)}>
-            Redeem
-          </button>
-          <Result r={rr} mock={mock} />
+          {canTx ? (
+            <button type="submit" className="primary" disabled={!open || !(redeemN > 0) || redeemTx.busy || redeemN > held}>
+              {redeemTx.busy ? 'Confirming...' : 'Redeem'}
+            </button>
+          ) : (
+            <ActionGate />
+          )}
+          {canTx && redeemN > held && <p role="alert" className="err">You do not hold that much t{sym}.</p>}
+          <TxStatus busy={redeemTx.busy} step={redeemTx.step} result={redeemTx.result} unit="USDC" verb="Redeemed" />
         </form>
       </div>
 
@@ -142,7 +131,7 @@ export function MintRedeem({ sym, onSym }: { sym: string; onSym: (s: string) => 
               <th>Token</th>
               <th className="num">Supply</th>
               <th className="num">Supply value</th>
-              <th className="num">tUSDC reserve</th>
+              <th className="num">USDC reserve</th>
               <th className="num">Backing</th>
               <th>Fully backed</th>
             </tr>
@@ -162,9 +151,8 @@ export function MintRedeem({ sym, onSym }: { sym: string; onSym: (s: string) => 
         </table>
       </div>
       <p className="caveat">
-        {mock
-          ? 'Mock: the issuer holds tUSDC against the token supply, valued at the oracle price. The ratio drifts as prices move, because the reserve is cash and the supply value is not. A real tokenized stock is backed by shares a broker holds, verified off-chain.'
-          : 'Anvil: reserve and supply value come from StockIssuer.proofOfReserve (tUSDC the issuer holds against supply x oracle price, plus a shared buffer). It is a cash reserve in a test contract, not custody of real shares.'}
+        Read from StockIssuer.proofOfReserve: the USDC the issuer holds against supply x oracle price, plus a buffer shared between tickers. The ratio drifts as
+        prices move, because the reserve is cash and the supply value is not. It is a cash reserve in a test contract, not custody of real shares.
       </p>
     </section>
   )

@@ -20,9 +20,9 @@ export interface SwapRow {
   /** unix seconds */
   ts: number
   pool: string
-  /** swap size in USD, undefined when the source does not provide it (live mode) */
+  /** swap size in USD, undefined when the source does not provide it */
   sizeUsd?: number
-  /** true when the swap moves the pool toward the reference; undefined in live mode */
+  /** true when the swap moves the pool toward the reference; undefined when unknown */
   towardRef?: boolean
   /** noise-adjusted deviation d_eff, bps (the FeeSet.deviationBps field) */
   deviationBps: number
@@ -30,20 +30,4 @@ export interface SwapRow {
   chargedFeeBps: number
   armed: boolean
   reason: Reason
-  /** reference age in seconds, replay only */
-  ageSec?: number
 }
-
-export interface BacktestResult {
-  pool: string
-  swapsSurchargedPct: number
-  volumeSurchargedPct: number
-  smallSwapsSurcharged: number | string | { surcharged: number; total: number }
-  lpPnlBefore: number
-  lpPnlAfter: number
-  windowDays?: number
-  volumeUsd?: number
-  note?: string
-}
-
-export type Mode = 'replay' | 'live'

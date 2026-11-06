@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { explain, REASON_TEXT } from '../lib/fee.ts'
 import { useMarket } from '../lib/market/context.ts'
-import { bps, qty, shortHash, signedUsd, usd } from '../lib/market/format.ts'
+import { bps, qty, usd } from '../lib/market/format.ts'
 import { AssetChart } from '../components/AssetChart.tsx'
-import type { PoolKind, Quote, Side, TradeResult } from '../lib/market/types.ts'
-import { BRAND } from '../brand.ts'
+import { TxStatus, useTx } from '../components/Tx.tsx'
+import { ActionGate, useCanTransact } from '../components/WalletButton.tsx'
+import type { PoolKind, Quote, Side } from '../lib/market/types.ts'
+import { ARC_EXPLORER } from '../lib/chain/arc.ts'
 
 function whyText(q: Quote): string {
   if (q.pool === 'control') return 'Control pool: a flat fee, no reference price check.'
@@ -22,14 +24,14 @@ export function Trade({ sym, onSym }: { sym: string; onSym: (s: string) => void 
   const [slip, setSlip] = useState('0.5')
   const [quote, setQuote] = useState<Quote | null>(null)
   const [qErr, setQErr] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [result, setResult] = useState<TradeResult | null>(null)
+  const tx = useTx()
+  const canTx = useCanTransact()
 
   const amt = Number(amount)
   const slipN = Number(slip)
   const have = state.wallet.tokens[sym] ?? 0
   const market = state.markets.find((m) => m.sym === sym)
-  const simTs = state.sim.simTs
+  const simTs = state.chainTs
   const marketKey = market ? `${market.hook.priceUsd}|${market.hook.feeBuyBps}|${market.hook.feeSellBps}|${market.refPriceUsd}` : ''
 
   useEffect(() => {
@@ -56,30 +58,22 @@ export function Trade({ sym, onSym }: { sym: string; onSym: (s: string) => void 
   const holdings = useMemo(
     () =>
       state.markets.map((m) => {
-        const b = state.wallet.basis[m.sym] ?? { qty: 0, costUsd: 0, realizedUsd: 0 }
         const q = state.wallet.tokens[m.sym] ?? 0
-        const value = q * m.refPriceUsd
-        const cost = q > 0 && b.qty > 0 ? (b.costUsd / b.qty) * q : 0
-        return { sym: m.sym, q, value, avg: b.qty > 0 ? b.costUsd / b.qty : 0, unreal: q > 0 ? value - cost : 0, realized: b.realizedUsd }
+        return { sym: m.sym, q, value: q * m.refPriceUsd }
       }),
     [state.markets, state.wallet],
   )
-  const totalUnreal = holdings.reduce((a, h) => a + h.unreal, 0)
-  const totalReal = holdings.reduce((a, h) => a + h.realized, 0)
+  const totalValue = holdings.reduce((a, h) => a + h.value, 0)
 
   async function confirm() {
     if (!engine || !shown) return
-    setBusy(true)
-    setResult(null)
-    const r = await engine.trade(sym, pool, side, amt, Number.isFinite(slipN) ? slipN : 0.5, shown.minOut)
-    setResult(r)
-    setBusy(false)
+    await tx.run((onStep) => engine.trade(sym, pool, side, amt, Number.isFinite(slipN) ? slipN : 0.5, shown.minOut, onStep))
   }
 
-  const unitIn = side === 'buy' ? 'tUSDC' : `t${sym}`
-  const unitOut = side === 'buy' ? `t${sym}` : 'tUSDC'
-  const insufficient = side === 'buy' ? amt > state.wallet.usdc : amt > have
-  const cheaper = shown ? shown.amountOut - shown.otherPoolOut : 0
+  const unitIn = side === 'buy' ? 'USDC' : `t${sym}`
+  const unitOut = side === 'buy' ? `t${sym}` : 'USDC'
+  const insufficient = canTx && (side === 'buy' ? amt > state.wallet.usdc : amt > have)
+  const cheaper = shown && shown.otherPoolOut !== null ? shown.amountOut - shown.otherPoolOut : null
   const hue = (() => {
     let h = 0
     for (const ch of sym) h = (h * 31 + ch.charCodeAt(0)) % 360
@@ -114,9 +108,9 @@ export function Trade({ sym, onSym }: { sym: string; onSym: (s: string) => void 
           <section className="at-about" aria-label="About">
             <h3>About</h3>
             <p>
-              t{sym} is a test token that tracks {market?.name ?? sym} inside the {BRAND} simulator. It trades against tUSDC in two
-              pools: a hook pool whose fee follows the oracle reference price, and a control pool with a flat fee.{' '}
-              {state.mode === 'mock' ? 'Prices here are simulated; nothing is real money or real stock.' : 'Data is read from your local chain.'}
+              t{sym} is a test token that tracks {market?.name ?? sym} on Arc Testnet. It trades against USDC in a hook pool whose fee follows the
+              oracle reference price{market?.control ? ', and a control pool with a flat fee' : ''}. Everything on this page is read from the chain; nothing here is real
+              money or real stock.
             </p>
             {market && (
               <div className="at-facts">
@@ -124,13 +118,14 @@ export function Trade({ sym, onSym }: { sym: string; onSym: (s: string) => void 
                   <div><dt>Underlying asset</dt><dd>{market.name}</dd></div>
                   <div><dt>Underlying ticker</dt><dd>{sym}</dd></div>
                   <div><dt>Category</dt><dd><span className="at-chip">Equities</span> <span className="at-chip">Test token</span></dd></div>
-                  <div><dt>Base fee</dt><dd>{market.hook.baseFeeBps} bps</dd></div>
+                  <div><dt>Base fee / cap</dt><dd>{market.hook.baseFeeBps} / {market.feeMaxBps} bps</dd></div>
                 </dl>
                 <dl>
                   <div><dt>Oracle reference</dt><dd>{usd(market.refPriceUsd, 2)}</dd></div>
                   <div><dt>Hook pool price</dt><dd>{usd(market.hook.priceUsd, 2)} ({bps(market.hook.devBps)} apart)</dd></div>
                   <div><dt>Hook fee buy / sell</dt><dd className={hi > market.hook.baseFeeBps + 0.01 ? 'surcharge' : undefined}>{market.hook.feeBuyBps.toFixed(0)} / {market.hook.feeSellBps.toFixed(0)} bps</dd></div>
-                  <div><dt>Hook pool TVL</dt><dd>{usd(market.hook.tvlUsd)}</dd></div>
+                  <div><dt>Hook pool active liquidity</dt><dd>{usd(market.hook.tvlUsd)}</dd></div>
+                  <div><dt>Oracle age</dt><dd className={market.stale ? 'surcharge' : undefined}>{market.refAgeSec}s (stale after {market.maxAgeSec}s){market.stale ? ' STALE' : ''}</dd></div>
                 </dl>
               </div>
             )}
@@ -156,7 +151,7 @@ export function Trade({ sym, onSym }: { sym: string; onSym: (s: string) => void 
                 <span className="sr-only">Pool</span>
                 <select value={pool} onChange={(e) => setPool(e.target.value as PoolKind)}>
                   <option value="hook">Hook pool</option>
-                  <option value="control">Control pool (flat fee)</option>
+                  {market?.control && <option value="control">Control pool (flat fee)</option>}
                 </select>
               </label>
             </div>
@@ -168,7 +163,7 @@ export function Trade({ sym, onSym }: { sym: string; onSym: (s: string) => void 
                   <input type="number" min="0" step="any" inputMode="decimal" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} aria-label={`Amount to spend in ${unitIn}`} />
                   <span className="at-token">{unitIn}</span>
                 </span>
-                <span className="sub">Balance: {side === 'buy' ? `${usd(state.wallet.usdc, 2)} tUSDC` : `${qty(have)} t${sym}`}</span>
+                <span className="sub">Balance: {!canTx ? 'connect a wallet' : side === 'buy' ? `${usd(state.wallet.usdc, 2)} USDC` : `${qty(have)} t${sym}`}</span>
               </label>
               <button type="button" className="at-flip" aria-label="Switch buy and sell" onClick={() => setSide(side === 'buy' ? 'sell' : 'buy')}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
@@ -179,16 +174,24 @@ export function Trade({ sym, onSym }: { sym: string; onSym: (s: string) => void 
                   <output className={shown ? 'at-out' : 'at-out empty'}>{shown ? qty(shown.amountOut, 6) : '0'}</output>
                   <span className="at-token">{unitOut}</span>
                 </span>
-                <span className="sub">{shown ? `Minimum ${qty(shown.minOut, 6)} after slippage` : 'Enter an amount for a live quote'}</span>
+                <span className="sub">{shown ? `${shown.exact ? 'Exact (on-chain dry run)' : 'Estimate'}. Minimum ${qty(shown.minOut, 6)} after slippage` : 'Enter an amount for a live quote'}</span>
               </div>
             </div>
 
-            <button type="submit" className="at-go" disabled={busy || !shown || !(amt > 0) || insufficient}>
-              {busy ? 'Confirming...' : `${side === 'buy' ? 'Buy' : 'Sell'} t${sym}`}
-            </button>
+            {canTx ? (
+              <button type="submit" className="at-go" disabled={tx.busy || !shown || !(amt > 0) || insufficient}>
+                {tx.busy ? 'Confirming...' : `${side === 'buy' ? 'Buy' : 'Sell'} t${sym}`}
+              </button>
+            ) : (
+              <ActionGate />
+            )}
             {insufficient && amt > 0 && (
               <p role="alert" className="err">
-                {side === 'buy' ? 'Not enough tUSDC. Use the faucet on the Mint & redeem page.' : `You do not hold that much t${sym}.`}
+                {side === 'buy' ? (
+                  <>Not enough USDC. Get test USDC from the <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">Circle faucet</a>.</>
+                ) : (
+                  `You do not hold that much t${sym}. Mint some on the Mint & redeem page.`
+                )}
               </p>
             )}
           </form>
@@ -209,37 +212,33 @@ export function Trade({ sym, onSym }: { sym: string; onSym: (s: string) => void 
                 <dd>{shown.towardRef ? 'Toward the reference' : 'Away from the reference'}</dd>
               </dl>
               <p className="why-box">{whyText(shown)}</p>
-              <p className="sub">
-                Same trade in the {shown.pool === 'hook' ? 'control' : 'hook'} pool: {qty(shown.otherPoolOut, 6)} {unitOut}. This pool gives you{' '}
-                {cheaper >= 0 ? 'more' : 'less'} by {qty(Math.abs(cheaper), 6)} {unitOut}.
-              </p>
+              {shown.otherPoolOut !== null && cheaper !== null && (
+                <p className="sub">
+                  Same trade in the {shown.pool === 'hook' ? 'control' : 'hook'} pool (estimate): {qty(shown.otherPoolOut, 6)} {unitOut}. This pool gives you{' '}
+                  {cheaper >= 0 ? 'more' : 'less'} by about {qty(Math.abs(cheaper), 6)} {unitOut}.
+                </p>
+              )}
             </div>
           )}
           <label className="at-slip">
             Slippage tolerance (%)
             <input type="number" min="0" step="0.1" inputMode="decimal" value={slip} onChange={(e) => setSlip(e.target.value)} />
           </label>
-          {result && (
-            <div role="status" className={result.ok ? 'result ok' : 'result bad'}>
-              {result.ok ? (
-                <>
-                  Trade confirmed{result.filledOut !== undefined ? `: received ${qty(result.filledOut, 6)} ${unitOut}` : ''}. Tx <code>{shortHash(result.hash ?? '')}</code>
-                  {state.mode === 'mock' ? ' (mock hash, no chain)' : ''}
-                </>
-              ) : (
-                <>Not executed: {result.error}</>
-              )}
-            </div>
-          )}
+          <TxStatus busy={tx.busy} step={tx.step} result={tx.result} unit={unitOut} verb="Trade confirmed" />
+          {canTx && <p className="sub">The first swap of a token needs an approval transaction, then the swap. Both are signed in your wallet.</p>}
           <p className="at-legal">
-            Test tokens only. This is spot trading, so you cannot short. Nothing here is real money, real stock or investment advice.
+            Test tokens on Arc Testnet only. Spot trading, no shorting. Nothing here is real money, real stock or investment advice.
           </p>
         </aside>
       </div>
 
-      <h2>Your positions</h2>
+      <h2>Your holdings</h2>
       <p className="sub">
-        tUSDC {usd(state.wallet.usdc, 2)}. Marked at the oracle reference price. Unrealized {signedUsd(totalUnreal)}, realized {signedUsd(totalReal)}.
+        {canTx ? (
+          <>USDC {usd(state.wallet.usdc, 2)}. Stock tokens valued at the oracle reference price: {usd(totalValue, 2)}.</>
+        ) : (
+          'Connect a wallet on Arc Testnet to see your balances.'
+        )}
       </p>
       <div className="tablewrap">
         <table>
@@ -247,21 +246,17 @@ export function Trade({ sym, onSym }: { sym: string; onSym: (s: string) => void 
             <tr>
               <th>Token</th>
               <th className="num">Quantity</th>
-              <th className="num">Average cost</th>
-              <th className="num">Value</th>
-              <th className="num">Unrealized P&amp;L</th>
-              <th className="num">Realized P&amp;L</th>
+              <th className="num">Value at oracle price</th>
+              <th>Contract</th>
             </tr>
           </thead>
           <tbody>
             {holdings.map((h) => (
               <tr key={h.sym}>
                 <td>t{h.sym}</td>
-                <td className="num">{qty(h.q)}</td>
-                <td className="num">{h.q > 0 ? usd(h.avg, 2) : '-'}</td>
-                <td className="num">{h.q > 0 ? usd(h.value, 2) : '-'}</td>
-                <td className="num">{h.q > 0 ? signedUsd(h.unreal) : '-'}</td>
-                <td className="num">{h.realized !== 0 ? signedUsd(h.realized) : '-'}</td>
+                <td className="num">{canTx ? qty(h.q) : '-'}</td>
+                <td className="num">{canTx && h.q > 0 ? usd(h.value, 2) : '-'}</td>
+                <td>{engine?.tokenAddress(h.sym) ? <a href={`${ARC_EXPLORER}/address/${engine.tokenAddress(h.sym)}`} target="_blank" rel="noreferrer"><code>{engine.tokenAddress(h.sym)?.slice(0, 10)}...</code></a> : '-'}</td>
               </tr>
             ))}
           </tbody>
