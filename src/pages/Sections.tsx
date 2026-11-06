@@ -91,7 +91,7 @@ function Bars({ h }: { h: Headline | null }) {
     { label: 'Small swaps', v: h.smallSurchargedPct, c: '#dce8ff' },
     { label: 'All swaps', v: h.surchargedPct, c: '#b3cdf7' },
     { label: 'Volume', v: h.volSurchargedPct, c: '#8ba9ee' },
-    { label: 'LP revenue', v: h.upliftPct, c: '#5a82cf' },
+    { label: 'LP P&L', v: h.upliftPct, c: '#5a82cf' },
   ]
   const max = Math.max(...bars.map((b) => b.v), 1)
   return (
@@ -140,9 +140,9 @@ export function Bento({ h, onLaunch }: { h: Headline | null; onLaunch: (e: React
       </div>
 
       <div className="lp-bento-right">
-        <section className="lp-metric lp-metric-wide" aria-label="LP revenue uplift">
+        <section className="lp-metric lp-metric-wide" aria-label="LP P&L change">
           <div>
-            <p className="lp-metric-label">LP revenue uplift</p>
+            <p className="lp-metric-label">LP P&L change</p>
             <p className="lp-metric-num lp-serif"><Odometer value={h ? `+${h.upliftPct.toFixed(1)}%` : '--'} /></p>
             <p className="lp-metric-sub">Historical backtest, core pools</p>
           </div>
@@ -178,7 +178,7 @@ export function Foundation({ h }: { h: Headline | null }) {
   const rows = [
     { v: h ? h.swaps.toLocaleString('en-US') : '--', l: ['Swaps', 'replayed'] },
     { v: h ? compactUsd(h.volume) : '--', l: ['Volume', 'replayed'] },
-    { v: h ? `+${h.upliftPct.toFixed(1)}%` : '--', l: ['LP fee', 'revenue'] },
+    { v: h ? `+${h.upliftPct.toFixed(1)}%` : '--', l: ['LP', 'P&L'] },
   ]
   return (
     <div className="lp-found">

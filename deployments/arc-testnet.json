@@ -1,0 +1,63 @@
+{
+  "chainId": 5042002,
+  "rpc": "https://rpc.testnet.arc.network",
+  "network": "Arc Testnet (chain id 5042002). TEST TOKENS: tTSLA is a mock token, not a real stock.",
+  "explorer": "https://explorer.testnet.arc.network",
+  "deployedAt": 1794008080,
+  "startBlock": 71106269,
+  "poolManager": "0x1d70945634F618eefdF9EDaAdB59B9A183CEF929",
+  "oracle": "0x907782029126f5f583010b4B5877A351236FE8f5",
+  "hook": "0xb5b44F87473da93eb56BE43597BeaB59F50a2080",
+  "forwarder": "0x76c9cf548b4179F8901cda1f8623568b58215E62",
+  "usdc": "0x3600000000000000000000000000000000000000",
+  "issuer": "0x55cf735Efe7c5b266dd6248B61dc765D4c7e51f9",
+  "swapRouter": "0xAeAb87E3a16f980f69267F6002B21cb9CFc36d4A",
+  "liquidityRouter": "0xFF6d2be7c1128d42Fba72401ce974436336674c7",
+  "baseFeePips": 3000,
+  "feeSetEvent": "FeeSet(bytes32,uint24,uint24,uint32,bool)",
+  "accounts": {
+    "deployer": "0xE717D34064E45aF53c8aFC2D4a64144803E2428F",
+    "lps": [
+      "0xE717D34064E45aF53c8aFC2D4a64144803E2428F",
+      "0xE717D34064E45aF53c8aFC2D4a64144803E2428F",
+      "0xE717D34064E45aF53c8aFC2D4a64144803E2428F"
+    ],
+    "arb": "0xE717D34064E45aF53c8aFC2D4a64144803E2428F",
+    "retail": "0xE717D34064E45aF53c8aFC2D4a64144803E2428F",
+    "note": "addresses only; no keys are stored in this manifest"
+  },
+  "lpRanges": {
+    "lp1": "wide (full range)",
+    "lp2": "medium (about +-10%)",
+    "lp3": "tight (about +-2.4%)"
+  },
+  "tickers": {
+    "TSLA": {
+      "feedId": "0x54534c4100000000000000000000000000000000000000000000000000000000",
+      "token": "0x7910aEb89f4843457d90cb26161EebA34d39EB60",
+      "startPriceE8": 35822000000,
+      "sigmaE12": 132600000,
+      "stockIsCurrency0": false,
+      "hookPool": {
+        "poolId": "0x8da9612899aac68e58409d29419ca36966ab5cf3e41ca9d2334f6c55a7c64aed",
+        "key": {
+          "currency0": "0x3600000000000000000000000000000000000000",
+          "currency1": "0x7910aEb89f4843457d90cb26161EebA34d39EB60",
+          "fee": 8388608,
+          "tickSpacing": 60,
+          "hooks": "0xb5b44F87473da93eb56BE43597BeaB59F50a2080"
+        }
+      },
+      "controlPool": {
+        "poolId": "0x9ee74a05d558a48e026d5259bd2cb2d43759d4643dc9bb2517fd98992b5a4cb6",
+        "key": {
+          "currency0": "0x3600000000000000000000000000000000000000",
+          "currency1": "0x7910aEb89f4843457d90cb26161EebA34d39EB60",
+          "fee": 3000,
+          "tickSpacing": 60,
+          "hooks": "0x0000000000000000000000000000000000000000"
+        }
+      }
+    }
+  }
+}

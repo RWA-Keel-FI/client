@@ -8,6 +8,10 @@ const here = dirname(fileURLToPath(import.meta.url))
 const app = resolve(here, '..')
 const root = resolve(app, '..')
 const pub = resolve(app, 'public')
+// Source folders in priority order: ../deployments (written by server/scripts/deploy-arc.sh) wins over the copy committed in this repo
+// (client/deployments), so a fresh clone of only this repo still shows the real Arc Testnet deployment.
+const sources = [resolve(root, 'deployments'), resolve(app, 'deployments')]
+const firstWith = (rel) => sources.map((d) => resolve(d, rel)).find((p) => existsSync(p))
 
 function copy(from, to) {
   if (!existsSync(from)) return false
@@ -23,9 +27,11 @@ rmSync(resolve(pub, 'sim'), { recursive: true, force: true })
 const found = []
 // arc-testnet.json is the real deployment; arc-fork.json is the local anvil fork of Arc Testnet (select it with VITE_DEPLOYMENT=arc-fork)
 for (const name of ['arc-testnet', 'arc-fork']) {
-  if (copy(resolve(root, `deployments/${name}.json`), resolve(pub, `deployments/${name}.json`))) found.push(`deployments/${name}.json`)
+  const from = firstWith(`${name}.json`)
+  if (from && copy(from, resolve(pub, `deployments/${name}.json`))) found.push(`deployments/${name}.json`)
 }
-if (found.length > 0 && copy(resolve(root, 'deployments/abi'), resolve(pub, 'deployments/abi'))) found.push('deployments/abi/')
+const abiFrom = firstWith('abi')
+if (found.length > 0 && abiFrom && copy(abiFrom, resolve(pub, 'deployments/abi'))) found.push('deployments/abi/')
 if (copy(resolve(root, 'server/backtest/results.json'), resolve(pub, 'results.json'))) found.push('backtest/results.json')
 
 if (!found.some((f) => f.startsWith('deployments/arc'))) {

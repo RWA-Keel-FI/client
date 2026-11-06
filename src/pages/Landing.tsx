@@ -162,7 +162,7 @@ export function Landing({ onLaunch }: Props) {
             <div className="lp-cards3">
               <article className="lp-card" data-reveal="fade-move" style={idx(0)}>
                 <p className="lp-tag">Backtest</p>
-                <h3>{h ? `+${h.upliftPct.toFixed(1)}%` : 'Higher'} LP revenue on real Ondo-token swaps (historical backtest)</h3>
+                <h3>{h ? `+${h.upliftPct.toFixed(1)}%` : 'Higher'} LP P&L on real Ondo-token swaps (historical backtest, static replay)</h3>
                 <a href="#results">Read more →</a>
               </article>
               <article className="lp-card" data-reveal="fade-move" style={idx(1)}>
