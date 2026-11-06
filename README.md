@@ -19,7 +19,7 @@ React 19 + Vite + TypeScript, with `wagmi` and `viem` for the chain and WalletCo
 | Mint & redeem | Mint and redeem `tTSLA` against USDC through the mock `StockIssuer`. Only open while the oracle price is fresh and the session is open. |
 | Liquidity | Add and remove liquidity in the hook pool or the static-fee control pool through `LiquidityRouter`. |
 | Flows | Diagram of how a price report, a swap and the fee fit together. |
-| Fee curve | The fee as a function of deviation. |
+| Fee events | Recent `FeeSet` events from the hook: the fee charged on each swap, the base fee, the deviation and whether the surcharge was armed. |
 | Backtest | A **historical** replay of real Ondo tokenized-stock swaps on Ethereum against the fee rule (`results.json` from the `server` repo). It is labelled as a backtest, not live data. |
 
 ## Run it
