@@ -25,3 +25,8 @@ dist-ssr
 .gstack/
 public/deployments
 public/sim
+
+# local secrets
+.env
+.env.*
+!.env.example
