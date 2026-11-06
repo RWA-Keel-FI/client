@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 import { HeroStage } from './HeroStage.tsx'
-import { FALLBACK, idx } from './landingData.ts'
+import { idx } from './landingData.ts'
 import type { Headline } from './landingData.ts'
 import { Lines } from './motion.tsx'
 import { Beliefs, Bento, Foundation } from './Sections.tsx'
@@ -48,7 +48,7 @@ function CurveArt() {
 }
 
 export function Landing({ onLaunch }: Props) {
-  const [h, setH] = useState<Headline>(FALLBACK)
+  const [h, setH] = useState<Headline | null>(null)
   const [scrolled, setScrolled] = useState(false)
   const [reduced] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   // Ondo-style hero: collapsed = full-bleed video, open = white page with the nested video squares.
@@ -162,7 +162,7 @@ export function Landing({ onLaunch }: Props) {
             <div className="lp-cards3">
               <article className="lp-card" data-reveal="fade-move" style={idx(0)}>
                 <p className="lp-tag">Backtest</p>
-                <h3>+{h.upliftPct.toFixed(1)}% LP revenue on real Ondo-token swaps</h3>
+                <h3>{h ? `+${h.upliftPct.toFixed(1)}%` : 'Higher'} LP revenue on real Ondo-token swaps (historical backtest)</h3>
                 <a href="#results">Read more →</a>
               </article>
               <article className="lp-card" data-reveal="fade-move" style={idx(1)}>
@@ -171,8 +171,8 @@ export function Landing({ onLaunch }: Props) {
                 <a href="#how">Read more →</a>
               </article>
               <article className="lp-card" data-reveal="fade-move" style={idx(2)}>
-                <p className="lp-tag">Simulator</p>
-                <h3>Replay it in the browser or against a local anvil chain</h3>
+                <p className="lp-tag">Arc Testnet</p>
+                <h3>Trade, mint and provide liquidity from your own wallet</h3>
                 <a href="/app" onClick={launch}>Open dashboard →</a>
               </article>
             </div>
@@ -184,7 +184,7 @@ export function Landing({ onLaunch }: Props) {
           <div className="lp-wrap">
             <p className="lp-eyebrow dark">The product</p>
             <h2 className="lp-h2"><Lines lines={['A new standard', 'for onchain stock liquidity.']} /></h2>
-            <p className="lp-sub">Three surfaces, one rule, all running on test tokens.</p>
+            <p className="lp-sub">Three surfaces, one rule, all running on test tokens on Arc Testnet.</p>
             <Bento h={h} onLaunch={launch} />
           </div>
         </section>
@@ -194,8 +194,8 @@ export function Landing({ onLaunch }: Props) {
           <div className="lp-wrap">
             <Foundation h={h} />
             <p className="lp-fine">
-              Backtest of real Ondo-token swaps on Ethereum, core pools (NVDAon, TSLAon), against the fee rule. Not live, not on a
-              testnet, not a forecast. See the Backtest tab in the app for the full table and sensitivities.
+              Backtest of real Ondo-token swaps on Ethereum, core pools (NVDAon, TSLAon), against the fee rule. Historical, not live, not on
+              the testnet, not a forecast. See the Backtest tab in the app for the full table and sensitivities.
             </p>
           </div>
         </section>
@@ -236,7 +236,7 @@ export function Landing({ onLaunch }: Props) {
         <section className="lp-cta">
           <div className="lp-wrap">
             <h2 className="lp-h2 light"><Lines lines={['Watch the fee move.']} /></h2>
-            <p className="lp-sub light" data-reveal="rise">Play a replay, shock a price, and see which swaps pay the surcharge, and why.</p>
+            <p className="lp-sub light" data-reveal="rise">Connect a wallet on Arc Testnet, swap, and see which swaps pay the surcharge, and why.</p>
             <a className="lp-pill lp-pill-light lp-pill-lg" href="/app" onClick={launch}>Launch App</a>
           </div>
         </section>

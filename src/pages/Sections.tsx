@@ -85,7 +85,8 @@ function DotChart() {
   )
 }
 
-function Bars({ h }: { h: Headline }) {
+function Bars({ h }: { h: Headline | null }) {
+  if (!h) return <div className="lp-bars" aria-hidden="true" />
   const bars = [
     { label: 'Small swaps', v: h.smallSurchargedPct, c: '#dce8ff' },
     { label: 'All swaps', v: h.surchargedPct, c: '#b3cdf7' },
@@ -106,7 +107,7 @@ function Bars({ h }: { h: Headline }) {
   )
 }
 
-export function Bento({ h, onLaunch }: { h: Headline; onLaunch: (e: React.MouseEvent) => void }) {
+export function Bento({ h, onLaunch }: { h: Headline | null; onLaunch: (e: React.MouseEvent) => void }) {
   const [tab, setTab] = useState(0)
   const cur = TABS[tab]!
   return (
@@ -142,14 +143,14 @@ export function Bento({ h, onLaunch }: { h: Headline; onLaunch: (e: React.MouseE
         <section className="lp-metric lp-metric-wide" aria-label="LP revenue uplift">
           <div>
             <p className="lp-metric-label">LP revenue uplift</p>
-            <p className="lp-metric-num lp-serif"><Odometer value={`+${h.upliftPct.toFixed(1)}%`} /></p>
-            <p className="lp-metric-sub">Backtest, core pools</p>
+            <p className="lp-metric-num lp-serif"><Odometer value={h ? `+${h.upliftPct.toFixed(1)}%` : '--'} /></p>
+            <p className="lp-metric-sub">Historical backtest, core pools</p>
           </div>
           <DotChart />
         </section>
 
-        <section className="lp-metric" aria-label="Stocks in the simulator">
-          <p className="lp-metric-label">Stocks in the simulator</p>
+        <section className="lp-metric" aria-label="Stocks supported">
+          <p className="lp-metric-label">Stocks supported</p>
           <p className="lp-metric-num lp-serif"><Odometer value={String(TICKERS.length)} /></p>
           <div className="lp-stock-grid">
             {TICKERS.map((s, i) => (
@@ -163,7 +164,7 @@ export function Bento({ h, onLaunch }: { h: Headline; onLaunch: (e: React.MouseE
 
         <section className="lp-metric" aria-label="Who pays the surcharge">
           <p className="lp-metric-label">Swaps surcharged</p>
-          <p className="lp-metric-num lp-serif"><Odometer value={`${h.surchargedPct.toFixed(1)}%`} /></p>
+          <p className="lp-metric-num lp-serif"><Odometer value={h ? `${h.surchargedPct.toFixed(1)}%` : '--'} /></p>
           <Bars h={h} />
         </section>
       </div>
@@ -173,11 +174,11 @@ export function Bento({ h, onLaunch }: { h: Headline; onLaunch: (e: React.MouseE
 
 /* ============================================================== big-number rows */
 
-export function Foundation({ h }: { h: Headline }) {
+export function Foundation({ h }: { h: Headline | null }) {
   const rows = [
-    { v: h.swaps.toLocaleString('en-US'), l: ['Swaps', 'replayed'] },
-    { v: compactUsd(h.volume), l: ['Volume', 'replayed'] },
-    { v: `+${h.upliftPct.toFixed(1)}%`, l: ['LP fee', 'revenue'] },
+    { v: h ? h.swaps.toLocaleString('en-US') : '--', l: ['Swaps', 'replayed'] },
+    { v: h ? compactUsd(h.volume) : '--', l: ['Volume', 'replayed'] },
+    { v: h ? `+${h.upliftPct.toFixed(1)}%` : '--', l: ['LP fee', 'revenue'] },
   ]
   return (
     <div className="lp-found">

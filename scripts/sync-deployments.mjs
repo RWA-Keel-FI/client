@@ -1,6 +1,6 @@
-// Copies the local anvil deployment and simulation output into public/ so the dev server and build can serve them.
-// Never fails: missing inputs just mean the app runs in mock mode.
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs'
+// Copies the Arc Testnet deployment (and the ABIs and backtest results) into public/ so the dev server and build can serve them.
+// Never fails: when deployments/arc-testnet.json does not exist yet the app shows a "Not deployed yet" state. There is no mock fallback.
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -16,14 +16,21 @@ function copy(from, to) {
   return true
 }
 
+// start clean so a deployment file that was removed (or an old local one) is not served stale
+rmSync(resolve(pub, 'deployments'), { recursive: true, force: true })
+rmSync(resolve(pub, 'sim'), { recursive: true, force: true })
+
 const found = []
-if (copy(resolve(root, 'deployments/local.json'), resolve(pub, 'deployments/local.json'))) found.push('deployments/local.json')
-if (copy(resolve(root, 'deployments/abi'), resolve(pub, 'deployments/abi'))) found.push('deployments/abi/')
-if (copy(resolve(root, 'server/sim/out/summary.json'), resolve(pub, 'sim/summary.json'))) found.push('sim/summary.json')
-if (copy(resolve(root, 'server/sim/out/metrics.jsonl'), resolve(pub, 'sim/metrics.jsonl'))) found.push('sim/metrics.jsonl')
-if (found.length === 0) {
-  rmSync(resolve(pub, 'deployments'), { recursive: true, force: true })
-  console.log('[sync-deployments] nothing to copy, the app will use the mock engine')
+// arc-testnet.json is the real deployment; arc-fork.json is the local anvil fork of Arc Testnet (select it with VITE_DEPLOYMENT=arc-fork)
+for (const name of ['arc-testnet', 'arc-fork']) {
+  if (copy(resolve(root, `deployments/${name}.json`), resolve(pub, `deployments/${name}.json`))) found.push(`deployments/${name}.json`)
+}
+if (found.length > 0 && copy(resolve(root, 'deployments/abi'), resolve(pub, 'deployments/abi'))) found.push('deployments/abi/')
+if (copy(resolve(root, 'server/backtest/results.json'), resolve(pub, 'results.json'))) found.push('backtest/results.json')
+
+if (!found.some((f) => f.startsWith('deployments/arc'))) {
+  const have = existsSync(resolve(root, 'deployments')) ? readdirSync(resolve(root, 'deployments')).filter((f) => f.endsWith('.json')) : []
+  console.log(`[sync-deployments] deployments/arc-testnet.json not found (have: ${have.join(', ') || 'nothing'}). The app will show "Not deployed yet".`)
 } else {
   console.log('[sync-deployments] copied: ' + found.join(', '))
 }

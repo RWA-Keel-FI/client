@@ -67,7 +67,7 @@ export class HistoryBuf {
         ts,
         ref: m.refPriceUsd,
         hook: m.hook.priceUsd,
-        control: m.control.priceUsd,
+        control: m.control?.priceUsd ?? NaN,
         devBps: m.hook.devBps,
         feeBps: Math.max(m.hook.feeBuyBps, m.hook.feeSellBps),
         baseFeeBps: m.hook.baseFeeBps,
@@ -83,6 +83,7 @@ export function toCandles(samples: readonly HistorySample[], bucketSec: number, 
   let prevVol = samples.length ? samples[0]!.volume : 0
   for (const s of samples) {
     const p = series === 'hook' ? s.hook : s.control
+    if (!Number.isFinite(p)) continue
     const t = Math.floor(s.ts / bucketSec) * bucketSec
     const cur = out[out.length - 1]
     if (cur && cur.t === t) {

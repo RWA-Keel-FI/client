@@ -8,7 +8,6 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "sync-results": "cp ../server/backtest/results.json public/results.json",
     "sync-deployments": "node scripts/sync-deployments.mjs",
     "predev": "node scripts/sync-deployments.mjs",
     "prebuild": "node scripts/sync-deployments.mjs"

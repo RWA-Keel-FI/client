@@ -10,8 +10,8 @@ export interface Headline {
   smallSurchargedPct: number
 }
 
-// Fallback = pooled_core_baseline from server/backtest/results.json at time of writing.
-export const FALLBACK: Headline = { upliftPct: 5.5, swaps: 22858, volume: 8706504, surchargedPct: 1.6, nonArb: 0, volSurchargedPct: 5.45, smallSurchargedPct: 1.3 }
+// Headline numbers come only from server/backtest/results.json (public/results.json). There is no hardcoded fallback: until the file loads,
+// the landing shows dashes.
 
 export function compactUsd(n: number): string {
   if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`

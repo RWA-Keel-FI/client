@@ -30,3 +30,5 @@ public/sim
 .env
 .env.*
 !.env.example
+.vercel
+.env*

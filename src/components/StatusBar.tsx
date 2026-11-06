@@ -24,7 +24,7 @@ export function StatusBar() {
         )}
       </div>
       {!WALLETCONNECT_CONFIGURED && (
-        <div className="banner mock" role="note">
+        <div className="banner warn" role="note">
           WalletConnect is off: set <code>VITE_WALLETCONNECT_PROJECT_ID</code> in <code>client/.env</code> (get a free id at dashboard.reown.com) and restart
           <code> pnpm dev</code>. Browser wallets (MetaMask and others) still work.
         </div>
