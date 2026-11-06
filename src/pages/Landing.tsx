@@ -7,6 +7,7 @@ import { Beliefs, Bento, Foundation } from './Sections.tsx'
 import { loadBacktest } from '../lib/results.ts'
 import './landing.css'
 import { BRAND } from '../brand.ts'
+import { LogoMark } from '../components/Logo.tsx'
 
 interface Props {
   onLaunch: () => void
@@ -128,10 +129,7 @@ export function Landing({ onLaunch }: Props) {
 
       <header className={`lp-nav${open ? '' : ' lp-nav--over'}${scrolled && open ? ' scrolled' : ''}${instant ? ' is-instant' : ''}`}>
         <a className="lp-logo" href="/" aria-label={`${BRAND} home`}>
-          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-            <circle cx="13" cy="13" r="12" fill="none" stroke="currentColor" strokeWidth="2" />
-            <path d="M5 16 L10 16 L15 8 L21 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <LogoMark size={26} />
           <span>{BRAND}</span>
         </a>
         <nav aria-label="Primary" className="lp-links">
@@ -248,10 +246,7 @@ export function Landing({ onLaunch }: Props) {
         <div className="lp-wrap lp-foot-grid">
           <div>
             <a className="lp-logo" href="/" aria-label={`${BRAND} home`}>
-              <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-                <circle cx="13" cy="13" r="12" fill="none" stroke="currentColor" strokeWidth="2" />
-                <path d="M5 16 L10 16 L15 8 L21 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <LogoMark size={26} />
               <span>{BRAND}</span>
             </a>
             <p className="lp-foot-note">Dynamic-fee Uniswap v4 hook for tokenized-stock pools. Test tokens only. Not investment advice.</p>

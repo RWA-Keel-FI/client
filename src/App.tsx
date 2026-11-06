@@ -19,6 +19,7 @@ import { MintRedeem } from './pages/MintRedeem.tsx'
 import { Trade } from './pages/Trade.tsx'
 import type { Mode, SwapRow } from './lib/types.ts'
 import { BRAND } from './brand.ts'
+import { LogoMark } from './components/Logo.tsx'
 
 type Tab = 'markets' | 'trade' | 'mint' | 'lp' | 'flows' | 'live' | 'swaps' | 'backtest'
 
@@ -95,10 +96,7 @@ function Dashboard({ onHome }: { onHome: () => void }) {
     <div className="ap">
       <header className="ap-top">
         <a className="ap-logo" href="/" onClick={(e) => { e.preventDefault(); onHome() }}>
-          <svg width="30" height="30" viewBox="0 0 26 26" aria-hidden="true">
-            <circle cx="13" cy="13" r="12" fill="none" stroke="currentColor" strokeWidth="2" />
-            <path d="M5 16 L10 16 L15 8 L21 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <LogoMark size={30} />
           <span>{BRAND}</span>
         </a>
         <nav className="ap-nav" aria-label="Sections">
