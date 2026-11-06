@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { TxStatus, useTx } from '../components/Tx.tsx'
+import { ActionGate, useCanTransact } from '../components/WalletButton.tsx'
 import { useMarket } from '../lib/market/context.ts'
-import { qty, shortHash, signedUsd, usd } from '../lib/market/format.ts'
-import type { PoolKind, PoolStats, RangePreset, TradeResult } from '../lib/market/types.ts'
+import { qty, usd } from '../lib/market/format.ts'
+import type { PoolKind, RangePreset } from '../lib/market/types.ts'
 
 const RANGES: { id: RangePreset; label: string; text: string }[] = [
   { id: 'wide', label: 'Wide', text: 'about +/-40% around the price: low fees per dollar, rarely out of range' },
@@ -9,36 +11,34 @@ const RANGES: { id: RangePreset; label: string; text: string }[] = [
   { id: 'tight', label: 'Tight', text: 'about +/-3%: most fees per dollar, out of range after a small move' },
 ]
 
-function sum(list: PoolStats[], f: (s: PoolStats) => number): number {
-  return list.reduce((a, s) => a + f(s), 0)
-}
-
 export function Liquidity({ sym, onSym }: { sym: string; onSym: (s: string) => void }) {
   const { engine, state } = useMarket()
   const [pool, setPool] = useState<PoolKind>('hook')
   const [range, setRange] = useState<RangePreset>('medium')
-  const [amount, setAmount] = useState('5000')
-  const [res, setRes] = useState<TradeResult | null>(null)
+  const [amount, setAmount] = useState('100')
+  const addTx = useTx()
+  const rmTx = useTx()
+  const canTx = useCanTransact()
   const amt = Number(amount)
-  const summary = state.summary
-  const entries = summary ? Object.entries(summary.tickers) : []
-  const hooks = entries.map(([, v]) => v.hook)
-  const controls = entries.map(([, v]) => v.control)
-  const mock = state.mode === 'mock'
+  const market = state.markets.find((m) => m.sym === sym)
+  const have = state.wallet.tokens[sym] ?? 0
+  const price = market ? (pool === 'control' && market.control ? market.control.priceUsd : market.hook.priceUsd) : 0
+  const needStock = price > 0 ? amt / 2 / price : 0
+  const short = canTx && (amt / 2 > state.wallet.usdc || needStock > have)
 
   return (
     <section aria-label="Liquidity">
       <p className="caveat">
-        {mock
-          ? 'Mock accounting: positions use a simplified concentration model (fee share and impermanent loss scaled by range), not Uniswap v4 tick math. Use it to see the shape of the trade-off.'
-          : 'Anvil: add and remove call LiquidityRouter.addLiquidityAmounts and removeLiquidity. Value is computed from the position’s liquidity and the current price. Fees earned are not read back from the chain, so Fees and vs holding show 0. You need both tUSDC and the stock token for a deposit.'}
+        Add and remove call LiquidityRouter.addLiquidityAmounts and removeLiquidity, signed by your wallet. A deposit takes half its value in USDC and half in the
+        stock token at the pool price, so you need both (mint the token on the Mint &amp; redeem page). Positions are found from your LiquidityChanged events and read
+        live from the pool. Fees earned are not read back from the chain, so they are not shown; the value below is principal at the current price.
       </p>
       <div className="twocol">
         <form
           className="panel"
           onSubmit={(e) => {
             e.preventDefault()
-            void engine?.addLiquidity(sym, pool, amt, range).then(setRes)
+            void addTx.run((onStep) => engine!.addLiquidity(sym, pool, amt, range, onStep))
           }}
         >
           <h2>Add liquidity</h2>
@@ -47,7 +47,7 @@ export function Liquidity({ sym, onSym }: { sym: string; onSym: (s: string) => v
             <select value={sym} onChange={(e) => onSym(e.target.value)}>
               {(engine?.syms ?? []).map((s) => (
                 <option key={s} value={s}>
-                  t{s} / tUSDC
+                  t{s} / USDC
                 </option>
               ))}
             </select>
@@ -58,9 +58,11 @@ export function Liquidity({ sym, onSym }: { sym: string; onSym: (s: string) => v
               <button type="button" aria-pressed={pool === 'hook'} onClick={() => setPool('hook')}>
                 Hook pool
               </button>
-              <button type="button" aria-pressed={pool === 'control'} onClick={() => setPool('control')}>
-                Control pool
-              </button>
+              {market?.control && (
+                <button type="button" aria-pressed={pool === 'control'} onClick={() => setPool('control')}>
+                  Control pool
+                </button>
+              )}
             </div>
           </div>
           <fieldset className="field">
@@ -75,52 +77,50 @@ export function Liquidity({ sym, onSym }: { sym: string; onSym: (s: string) => v
             ))}
           </fieldset>
           <label className="field">
-            Deposit (tUSDC value)
+            Deposit (USDC value)
             <input type="number" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} />
-            <span className="sub">Balance {usd(state.wallet.usdc, 2)} tUSDC</span>
+            <span className="sub">
+              Needs {usd(amt / 2 || 0, 2)} USDC and about {qty(needStock, 6)} t{sym}.{canTx ? ` You have ${usd(state.wallet.usdc, 2)} USDC and ${qty(have)} t${sym}.` : ''}
+            </span>
           </label>
-          <button type="submit" className="primary" disabled={!(amt > 0) || amt > state.wallet.usdc}>
-            Add liquidity
-          </button>
-          {res && (
-            <div role="status" className={res.ok ? 'result ok' : 'result bad'}>
-              {res.ok ? (
-                <>
-                  Position opened. Tx <code>{shortHash(res.hash ?? '')}</code>
-                  {mock ? ' (mock)' : ''}
-                </>
-              ) : (
-                <>Not added: {res.error}</>
-              )}
-            </div>
+          {canTx ? (
+            <button type="submit" className="primary" disabled={!(amt > 0) || short || addTx.busy}>
+              {addTx.busy ? 'Confirming...' : 'Add liquidity'}
+            </button>
+          ) : (
+            <ActionGate />
           )}
+          {short && amt > 0 && <p role="alert" className="err">Not enough balance for both halves of the deposit.</p>}
+          <TxStatus busy={addTx.busy} step={addTx.step} result={addTx.result} verb="Position opened" />
         </form>
 
         <div className="panel">
           <h2>How to read this</h2>
           <ul className="plain">
-            <li><strong>Fees</strong> are your share of the swap fees while the price stays inside your range.</li>
-            <li><strong>vs holding</strong> is your value minus what the same deposit would be worth just held. Negative means impermanent loss beat the fees.</li>
-            <li><strong>Tighter range</strong> earns more fees per dollar but goes out of range sooner and then earns nothing.</li>
-            <li><strong>Hook vs control:</strong> the hook pool charges arbitrageurs more, so LPs lose less to them. Compare the two pools below.</li>
+            <li><strong>Range</strong> is where your liquidity earns fees. Outside it you hold one token and earn nothing.</li>
+            <li><strong>Tighter range</strong> earns more fees per dollar but goes out of range sooner.</li>
+            <li><strong>Hook vs control:</strong> the hook pool charges arbitrageurs more, so LPs lose less to them. The control pool has a flat fee and no hook.</li>
+            <li>Each add needs approvals for both tokens, then the deposit. All are signed in your wallet.</li>
           </ul>
         </div>
       </div>
 
       <h2>Your positions</h2>
-      {state.positions.length === 0 ? (
-        <p className="sub">No positions yet. Add some liquidity and let the simulation run.</p>
+      {!canTx ? (
+        <p className="sub">Connect a wallet on Arc Testnet to see your positions.</p>
+      ) : state.positions.length === 0 ? (
+        <p className="sub">No open positions found for this wallet.</p>
       ) : (
         <div className="tablewrap">
           <table>
             <thead>
               <tr>
                 <th>Pool</th>
-                <th>Range</th>
-                <th className="num">Deposit</th>
-                <th className="num">Fees</th>
+                <th>Price range (USD)</th>
+                <th className="num">Liquidity</th>
+                <th className="num">Stock</th>
+                <th className="num">USDC</th>
                 <th className="num">Value</th>
-                <th className="num">vs holding</th>
                 <th />
               </tr>
             </thead>
@@ -131,16 +131,16 @@ export function Liquidity({ sym, onSym }: { sym: string; onSym: (s: string) => v
                     t{p.sym} {p.pool}
                   </td>
                   <td>
-                    {p.range}
+                    {usd(p.lowerUsd, 2)} to {usd(p.upperUsd, 2)}
                     {p.inRange ? '' : ' (out of range, no fees)'}
                   </td>
-                  <td className="num">{usd(p.depositUsd, 2)}</td>
-                  <td className="num">{usd(p.feesUsd, 2)}</td>
+                  <td className="num">{p.liquidity}</td>
+                  <td className="num">{qty(p.stock, 6)}</td>
+                  <td className="num">{usd(p.usdc, 2)}</td>
                   <td className="num">{usd(p.valueUsd, 2)}</td>
-                  <td className="num">{signedUsd(p.vsHoldUsd)}</td>
                   <td>
-                    <button type="button" onClick={() => void engine?.removeLiquidity(p.id)}>
-                      Remove
+                    <button type="button" disabled={rmTx.busy} onClick={() => void rmTx.run((onStep) => engine!.removeLiquidity(p.id, onStep))}>
+                      Remove all
                     </button>
                   </td>
                 </tr>
@@ -149,78 +149,41 @@ export function Liquidity({ sym, onSym }: { sym: string; onSym: (s: string) => v
           </table>
         </div>
       )}
+      <TxStatus busy={rmTx.busy} step={rmTx.step} result={rmTx.result} verb="Position removed" />
 
-      <h2>Hook pool vs control pool</h2>
-      <p className="sub">
-        Same retail orders hit both pools. LP P&amp;L here is fees minus what arbitrageurs extract, measured against the true
-        price ({summary?.source === 'file' ? 'from the sim summary file' : 'simulated in this page, resets on reload'}). Surcharge
-        rates here depend on the shocks you inject and are not the backtest result (see the Backtest tab).
-      </p>
-      {summary ? (
-        <div className="tablewrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Stock</th>
-                <th>Pool</th>
-                <th className="num">Volume</th>
-                <th className="num">Fees</th>
-                <th className="num">Arb profit</th>
-                <th className="num">Retail fees paid</th>
-                <th className="num">LP P&amp;L</th>
-                <th className="num">Swaps surcharged</th>
-                <th className="num">Retail surcharged</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.flatMap(([s, v]) =>
-                (['hook', 'control'] as const).map((k) => {
-                  const p = v[k]
-                  return (
-                    <tr key={s + k}>
-                      <td>t{s}</td>
-                      <td>{k}</td>
-                      <td className="num">{usd(p.volumeUsd)}</td>
-                      <td className="num">{usd(p.feesUsd)}</td>
-                      <td className="num">{usd(p.arbProfitUsd)}</td>
-                      <td className="num">{usd(p.retailFeePaidUsd)}</td>
-                      <td className="num">{signedUsd(p.lpPnlUsd, 0)}</td>
-                      <td className="num">{p.swapsSurchargedPct.toFixed(1)}%</td>
-                      <td className="num">{p.retailSurchargedPct.toFixed(1)}%</td>
-                    </tr>
-                  )
-                }),
-              )}
-              <tr className="totalrow">
-                <td>All</td>
-                <td>hook</td>
-                <td className="num">{usd(sum(hooks, (s) => s.volumeUsd))}</td>
-                <td className="num">{usd(sum(hooks, (s) => s.feesUsd))}</td>
-                <td className="num">{usd(sum(hooks, (s) => s.arbProfitUsd))}</td>
-                <td className="num">{usd(sum(hooks, (s) => s.retailFeePaidUsd))}</td>
-                <td className="num">{signedUsd(sum(hooks, (s) => s.lpPnlUsd), 0)}</td>
-                <td className="num" colSpan={2} />
-              </tr>
-              <tr className="totalrow">
-                <td>All</td>
-                <td>control</td>
-                <td className="num">{usd(sum(controls, (s) => s.volumeUsd))}</td>
-                <td className="num">{usd(sum(controls, (s) => s.feesUsd))}</td>
-                <td className="num">{usd(sum(controls, (s) => s.arbProfitUsd))}</td>
-                <td className="num">{usd(sum(controls, (s) => s.retailFeePaidUsd))}</td>
-                <td className="num">{signedUsd(sum(controls, (s) => s.lpPnlUsd), 0)}</td>
-                <td className="num" colSpan={2} />
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="sub">
-          No summary available. In anvil mode run the simulation (it writes sim/out/summary.json) and run{' '}
-          <code>pnpm sync-deployments</code>.
-        </p>
-      )}
-      <p className="sub">{qty(state.positions.length, 0)} open position(s).</p>
+      <h2>Pools</h2>
+      <div className="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Stock</th>
+              <th>Pool</th>
+              <th className="num">Price</th>
+              <th className="num">Deviation</th>
+              <th className="num">Fee buy / sell (bps)</th>
+              <th className="num">Active liquidity</th>
+              <th className="num">Volume (loaded window)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {state.markets.flatMap((m) =>
+              ([['hook', m.hook], ['control', m.control]] as const).map(([k, v]) =>
+                v ? (
+                  <tr key={m.sym + k}>
+                    <td>t{m.sym}</td>
+                    <td>{k}</td>
+                    <td className="num">{usd(v.priceUsd, 2)}</td>
+                    <td className="num">{v.devBps.toFixed(1)} bps</td>
+                    <td className="num">{v.feeBuyBps.toFixed(1)} / {v.feeSellBps.toFixed(1)}</td>
+                    <td className="num">{usd(v.tvlUsd)}</td>
+                    <td className="num">{usd(v.volumeUsd)}</td>
+                  </tr>
+                ) : null,
+              ),
+            )}
+          </tbody>
+        </table>
+      </div>
     </section>
   )
 }

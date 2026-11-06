@@ -10,7 +10,7 @@ const FILTERS = ['All assets', 'ETF', 'Technology', 'Consumer', 'Surcharged'] as
 type Filter = (typeof FILTERS)[number]
 const SORTS = [
   { id: 'traded', label: 'Most traded' },
-  { id: 'gainers', label: 'Top gainers' },
+  { id: 'gainers', label: 'Top movers' },
   { id: 'dev', label: 'Highest deviation' },
   { id: 'name', label: 'Name A-Z' },
 ] as const
@@ -110,7 +110,7 @@ export function Markets({ query, onTrade }: { query: string; onTrade: (sym: stri
   const rows: Row[] = useMemo(
     () =>
       state.markets.map((m) => {
-        const h = (engine?.history(m.sym) ?? []).slice(-120)
+        const h = engine?.history(m.sym) ?? []
         const first = h[0]?.hook ?? m.hook.priceUsd
         const price = m.hook.priceUsd
         return {
@@ -118,7 +118,7 @@ export function Markets({ query, onTrade }: { query: string; onTrade: (sym: stri
           price,
           chg: price - first,
           pct: first > 0 ? ((price - first) / first) * 100 : 0,
-          vol: state.summary?.tickers[m.sym]?.hook.volumeUsd ?? 0,
+          vol: m.hook.volumeUsd,
           armed: Math.max(m.hook.feeBuyBps, m.hook.feeSellBps) > m.hook.baseFeeBps + 0.01,
           fee: Math.max(m.hook.feeBuyBps, m.hook.feeSellBps),
           spark: h.map((s) => s.hook),
@@ -149,14 +149,14 @@ export function Markets({ query, onTrade }: { query: string; onTrade: (sym: stri
   const gainers = [...rows].sort((a, b) => b.pct - a.pct)
   const traded = [...rows].sort((a, b) => b.vol - a.vol)
   const deviated = [...rows].sort((a, b) => b.m.hook.devBps - a.m.hook.devBps)
-  const open = state.markets[0]?.sessionOpen ?? true
+  const open = state.markets[0]?.sessionOpen ?? false
 
   return (
     <section aria-label="Explore">
       <div className="ex-hero">
         <div className="ex-hero-copy">
           <h2>Fees that follow the market</h2>
-          <p>Compare a hook pool against a flat-fee control pool, tick by tick.</p>
+          <p>Live Arc Testnet pools. The hook charges more only on swaps that push a mispriced pool back toward the oracle price.</p>
           <button type="button" onClick={() => onTrade(traded[0]?.m.sym ?? 'NVDA')}>
             Trade now
           </button>
@@ -169,8 +169,8 @@ export function Markets({ query, onTrade }: { query: string; onTrade: (sym: stri
       </div>
 
       <div className="ex-cards">
-        <Board title="Top Gainers" chip="2H" rows={gainers} onTrade={onTrade} sub={(r) => <Change pct={r.pct} />} />
-        <Board title="Most Traded" chip="Volume" rows={traded} onTrade={onTrade} sub={(r) => <span className="ex-muted">{usd(r.vol, 0)}</span>} />
+        <Board title="Top Movers" chip="Since load" rows={gainers} onTrade={onTrade} sub={(r) => <Change pct={r.pct} />} />
+        <Board title="Most Traded" chip="Recent volume" rows={traded} onTrade={onTrade} sub={(r) => <span className="ex-muted">{usd(r.vol, 0)}</span>} />
         <Board title="Highest Deviation" chip="Now" rows={deviated} onTrade={onTrade} sub={(r) => <span className="ex-muted">{bps(r.m.hook.devBps)}</span>} />
       </div>
 
@@ -180,7 +180,7 @@ export function Markets({ query, onTrade }: { query: string; onTrade: (sym: stri
             Stocks &amp; ETFs <span className="ex-chip">{rows.length}</span>
           </span>
           <span className={open ? 'ex-status open' : 'ex-status'}>
-            {open ? 'Market open' : 'Session closed'} <span className="ex-muted">({state.mode === 'mock' ? 'simulated' : 'local chain'})</span>
+            {open ? 'Market open' : 'Session closed'} <span className="ex-muted">(oracle session flag, Arc Testnet)</span>
           </span>
         </div>
 
@@ -220,12 +220,12 @@ export function Markets({ query, onTrade }: { query: string; onTrade: (sym: stri
                   <th>#</th>
                   <th>Asset name</th>
                   <th>Price</th>
-                  <th>2H ($)</th>
-                  <th>2H (%)</th>
-                  <th>Volume</th>
+                  <th>Change ($)</th>
+                  <th>Change (%)</th>
+                  <th>Recent volume</th>
                   <th>Deviation</th>
                   <th>Fee status</th>
-                  <th>2H chart</th>
+                  <th>Chart</th>
                 </tr>
               </thead>
               <tbody>
@@ -283,6 +283,7 @@ export function Markets({ query, onTrade }: { query: string; onTrade: (sym: stri
       </div>
 
       <p className="ex-note">
+        Price changes and charts are built from pool reads taken since you opened this page; volume is summed from SwapRouter events in the recent block window.{' '}
         When the session is closed there is no live reference, so the hook charges the base fee and the issuer pauses minting and
         redeeming. The pools keep trading, which is the weekend case.
       </p>

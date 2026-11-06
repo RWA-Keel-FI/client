@@ -2,14 +2,15 @@ import { useState } from 'react'
 import { FlowDiagram } from '../components/FlowDiagram.tsx'
 import { useMarket } from '../lib/market/context.ts'
 import { clock, usd } from '../lib/market/format.ts'
+import { ARC_EXPLORER } from '../lib/chain/arc.ts'
 import type { Actor, FlowEvent } from '../lib/market/types.ts'
 
-const KINDS: FlowEvent['kind'][] = ['oracle', 'session', 'swap', 'mint', 'redeem', 'lp', 'faucet']
-const ACTORS: Actor[] = ['retail', 'arb', 'you', 'issuer', 'oracle', 'system']
+const KINDS: FlowEvent['kind'][] = ['oracle', 'swap', 'mint', 'redeem', 'lp']
+const ACTORS: Actor[] = ['you', 'other', 'issuer', 'oracle']
 
 export function Flows() {
   const { engine, state } = useMarket()
-  const [kinds, setKinds] = useState<Set<FlowEvent['kind']>>(new Set(['swap', 'session', 'mint', 'redeem', 'lp', 'faucet', 'oracle']))
+  const [kinds, setKinds] = useState<Set<FlowEvent['kind']>>(new Set(KINDS))
   const [actor, setActor] = useState<'all' | Actor>('all')
   const [sym, setSym] = useState('all')
   const [armedOnly, setArmedOnly] = useState(false)
@@ -30,7 +31,7 @@ export function Flows() {
 
   return (
     <section aria-label="Flows">
-      <FlowDiagram events={state.events} summary={state.summary} />
+      <FlowDiagram events={state.events} />
       <fieldset className="filters">
         <legend>Filters</legend>
         {KINDS.map((k) => (
@@ -63,8 +64,7 @@ export function Flows() {
         </label>
       </fieldset>
       <p className="sub">
-        {shown.length} events shown of {state.events.length}. Swap events show who traded when the source knows it
-        {state.mode === 'chain' ? ' (on anvil the actor comes from the swap router’s payer address, matched to the deployment’s arb, retail and LP accounts)' : ''}.
+        {shown.length} events shown of {state.events.length} loaded from the recent blocks (SwapRouter, StockIssuer, LiquidityRouter and oracle events). "you" is the connected wallet.
       </p>
       <div className="tablewrap">
         <table>
@@ -78,6 +78,7 @@ export function Flows() {
               <th className="num">Size</th>
               <th className="num">Fee (bps)</th>
               <th>Detail</th>
+              <th>Tx</th>
             </tr>
           </thead>
           <tbody>
@@ -94,11 +95,12 @@ export function Flows() {
                   {e.armed ? ' (surcharge)' : ''}
                 </td>
                 <td className="why">{e.detail}</td>
+                <td><a href={`${ARC_EXPLORER}/tx/${e.tx}`} target="_blank" rel="noreferrer"><code>{e.tx.slice(0, 10)}...</code></a></td>
               </tr>
             ))}
             {shown.length === 0 && (
               <tr>
-                <td colSpan={8}>No events yet. Press Play, or trade.</td>
+                <td colSpan={9}>No events in the loaded block window yet.</td>
               </tr>
             )}
           </tbody>

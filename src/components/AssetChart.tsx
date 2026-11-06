@@ -64,7 +64,7 @@ export function AssetChart({ sym }: { sym: string }) {
         <label className="inline">
           <input type="checkbox" checked={showRef} onChange={(e) => setShowRef(e.target.checked)} /> Oracle reference
         </label>
-        <span className="sub">{state.mode === 'mock' ? 'Simulated prices' : 'Local chain'}</span>
+        <span className="sub">Pool reads since you opened this page (Arc Testnet, every few seconds)</span>
       </div>
     </section>
   )
