@@ -58,6 +58,114 @@
           "hooks": "0x0000000000000000000000000000000000000000"
         }
       }
+    },
+    "NVDA": {
+      "feedId": "0x4e56444100000000000000000000000000000000000000000000000000000000",
+      "token": "0xf9B947A1d5bD8abfED4D9b729A0AEaA726228fE6",
+      "startPriceE8": 18664000000,
+      "sigmaE12": 85200000,
+      "stockIsCurrency0": false,
+      "hookPool": {
+        "poolId": "0x4562aa9c37d99d361b35bafcbde4ab22d2f0d811d8b2e018b609441d3dd838b7",
+        "key": {
+          "currency0": "0x3600000000000000000000000000000000000000",
+          "currency1": "0xf9B947A1d5bD8abfED4D9b729A0AEaA726228fE6",
+          "fee": 8388608,
+          "tickSpacing": 60,
+          "hooks": "0xb5b44F87473da93eb56BE43597BeaB59F50a2080"
+        }
+      },
+      "controlPool": {
+        "poolId": "0x31deac17bf2cd4e4111ab0510094b9b3abc55879dc8f85cb04428ca13c6e1f80",
+        "key": {
+          "currency0": "0x3600000000000000000000000000000000000000",
+          "currency1": "0xf9B947A1d5bD8abfED4D9b729A0AEaA726228fE6",
+          "fee": 3000,
+          "tickSpacing": 60,
+          "hooks": "0x0000000000000000000000000000000000000000"
+        }
+      }
+    },
+    "AAPL": {
+      "feedId": "0x4141504c00000000000000000000000000000000000000000000000000000000",
+      "token": "0x0dfCeF65A9b4E44252B288adCaA526ed1d2A0b20",
+      "startPriceE8": 34237000000,
+      "sigmaE12": 64300000,
+      "stockIsCurrency0": true,
+      "hookPool": {
+        "poolId": "0xa0afa7e94a13527b464ddcfc3fc19038f665184d7ef7fe938283e86e0b0966e7",
+        "key": {
+          "currency0": "0x0dfCeF65A9b4E44252B288adCaA526ed1d2A0b20",
+          "currency1": "0x3600000000000000000000000000000000000000",
+          "fee": 8388608,
+          "tickSpacing": 60,
+          "hooks": "0xb5b44F87473da93eb56BE43597BeaB59F50a2080"
+        }
+      },
+      "controlPool": {
+        "poolId": "0x8c9b3e0b134ca1d5707add7761e7bd201428a0bf1879a1067d038282f57a3cf5",
+        "key": {
+          "currency0": "0x0dfCeF65A9b4E44252B288adCaA526ed1d2A0b20",
+          "currency1": "0x3600000000000000000000000000000000000000",
+          "fee": 3000,
+          "tickSpacing": 60,
+          "hooks": "0x0000000000000000000000000000000000000000"
+        }
+      }
+    },
+    "GOOGL": {
+      "feedId": "0x474f4f474c000000000000000000000000000000000000000000000000000000",
+      "token": "0x8cF28B53990CA7071a60A9E9c83fcCf7e0f6F746",
+      "startPriceE8": 28478000000,
+      "sigmaE12": 75800000,
+      "stockIsCurrency0": false,
+      "hookPool": {
+        "poolId": "0xb917e4a96eb3e377481e8ce0205a267897f7e8ebff41e705873afdf1e410a2f6",
+        "key": {
+          "currency0": "0x3600000000000000000000000000000000000000",
+          "currency1": "0x8cF28B53990CA7071a60A9E9c83fcCf7e0f6F746",
+          "fee": 8388608,
+          "tickSpacing": 60,
+          "hooks": "0xb5b44F87473da93eb56BE43597BeaB59F50a2080"
+        }
+      },
+      "controlPool": {
+        "poolId": "0xf77b191bad19e097e27c2e75b3bb30e91120058e2f718b864e7fbd7be02cd264",
+        "key": {
+          "currency0": "0x3600000000000000000000000000000000000000",
+          "currency1": "0x8cF28B53990CA7071a60A9E9c83fcCf7e0f6F746",
+          "fee": 3000,
+          "tickSpacing": 60,
+          "hooks": "0x0000000000000000000000000000000000000000"
+        }
+      }
+    },
+    "META": {
+      "feedId": "0x4d45544100000000000000000000000000000000000000000000000000000000",
+      "token": "0xE53762Ac95105ed68D7384E8e1b76c3e16ba5C4A",
+      "startPriceE8": 61015000000,
+      "sigmaE12": 85800000,
+      "stockIsCurrency0": false,
+      "hookPool": {
+        "poolId": "0xddab766666de840d0c34ed58918f0109492cdec19d37b405afb0babeecba989c",
+        "key": {
+          "currency0": "0x3600000000000000000000000000000000000000",
+          "currency1": "0xE53762Ac95105ed68D7384E8e1b76c3e16ba5C4A",
+          "fee": 8388608,
+          "tickSpacing": 60,
+          "hooks": "0xb5b44F87473da93eb56BE43597BeaB59F50a2080"
+        }
+      },
+      "controlPool": {
+        "poolId": "0xe3267fc4493f4d3c2ade0a79e706aa0a8972f0d0224014ac7e7f7752f167f579",
+        "key": {
+          "currency0": "0x3600000000000000000000000000000000000000",
+          "currency1": "0xE53762Ac95105ed68D7384E8e1b76c3e16ba5C4A",
+          "fee": 3000,
+          "tickSpacing": 60,
+          "hooks": "0x0000000000000000000000000000000000000000"
+        }
+      }
     }
   }
 }
