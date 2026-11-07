@@ -1,7 +1,7 @@
-import { createConfig, http } from 'wagmi'
+import { createConfig, fallback, http } from 'wagmi'
 import { injected } from 'wagmi/connectors/injected'
 import { walletConnect } from 'wagmi/connectors/walletConnect'
-import { arcTestnet, ARC_RPC } from './arc.ts'
+import { arcTestnet, ARC_FALLBACK_RPCS, ARC_RPC } from './arc.ts'
 
 const raw = (import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined)?.trim() ?? ''
 /** WalletConnect (Reown) project ids are 32 hex chars. Anything else is treated as "not configured". */
@@ -30,7 +30,14 @@ export const wagmiConfig = createConfig({
         ]
       : []),
   ],
-  transports: { [arcTestnet.id]: http(ARC_RPC, { batch: true }) },
+  // The free public endpoints rate-limit quickly, so a request that fails on one is retried on the next. Each endpoint gives up fast
+  // (retryCount 1) so failover is quick; the transport as a whole still retries. ARC_RPC (VITE_ARC_RPC_URL if set) is tried first.
+  transports: {
+    [arcTestnet.id]: fallback(
+      [ARC_RPC, ...ARC_FALLBACK_RPCS.filter((u) => u !== ARC_RPC)].map((u) => http(u, { batch: true, retryCount: 1, retryDelay: 600, timeout: 15_000 })),
+      { rank: false, retryCount: 2, retryDelay: 1000 },
+    ),
+  },
   batch: { multicall: true },
   multiInjectedProviderDiscovery: true,
 })

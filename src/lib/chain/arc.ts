@@ -7,8 +7,18 @@ import type { Address } from 'viem'
  * token's own `decimals()` (6).
  */
 export const ARC_CHAIN_ID = 5042002
-export const ARC_EXPLORER = 'https://explorer.testnet.arc.network'
-export const ARC_PUBLIC_RPC = 'https://rpc.testnet.arc.network'
+export const ARC_EXPLORER = 'https://explorer.testnet.arc.io'
+export const ARC_PUBLIC_RPC = 'https://rpc.testnet.arc.io'
+/**
+ * Other official Arc Testnet endpoints (listed in the Arc docs; each answered eth_chainId 0x4cef52 with CORS open when tested).
+ * The app fails over to these when the primary rate-limits, which the free primary endpoint does quickly.
+ */
+export const ARC_FALLBACK_RPCS: readonly string[] = [
+  'https://rpc.drpc.testnet.arc.io',
+  'https://rpc.quicknode.testnet.arc.io',
+  'https://rpc.blockdaemon.testnet.arc.io',
+  'https://rpc.testnet.arc.network',
+]
 export const ARC_USDC: Address = '0x3600000000000000000000000000000000000000'
 export const ARC_FAUCET = 'https://faucet.circle.com'
 /** Native gas currency: 18 decimals. */

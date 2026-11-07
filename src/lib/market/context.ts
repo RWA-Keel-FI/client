@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { DeploymentLoad } from '../chain/deployment.ts'
 import type { Engine, EngineState } from './types.ts'
+import type { ErrorInfo } from './errors.ts'
 
 export interface MarketCtx {
   engine: Engine | null
@@ -9,6 +10,10 @@ export interface MarketCtx {
   deployment: DeploymentLoad
   /** why the engine could not start or keep reading, if it could not */
   loadError: string
+  /** where startup is: connecting (with the attempt number), ready, or failed (with a classified reason) */
+  startup: { phase: 'connecting' | 'ready' | 'failed'; attempt: number; info: ErrorInfo | null }
+  /** start over now (also happens automatically every 20 s while failed) */
+  retry: () => void
 }
 
 export const EMPTY_STATE: EngineState = {
@@ -29,6 +34,8 @@ export const MarketContext = createContext<MarketCtx>({
   state: EMPTY_STATE,
   deployment: { status: 'loading' },
   loadError: '',
+  startup: { phase: 'connecting', attempt: 0, info: null },
+  retry: () => {},
 })
 
 export function useMarket(): MarketCtx {

@@ -2,7 +2,7 @@
   "chainId": 5042002,
   "rpc": "https://rpc.testnet.arc.network",
   "network": "Arc Testnet (chain id 5042002). TEST TOKENS: tTSLA is a mock token, not a real stock.",
-  "explorer": "https://explorer.testnet.arc.network",
+  "explorer": "https://explorer.testnet.arc.io",
   "deployedAt": 1794008080,
   "startBlock": 71106269,
   "poolManager": "0x1d70945634F618eefdF9EDaAdB59B9A183CEF929",

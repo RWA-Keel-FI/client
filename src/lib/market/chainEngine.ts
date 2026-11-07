@@ -41,7 +41,7 @@ interface Cfg {
 const POOLS_SLOT = 6n
 /** ticks for a +/- range around the current tick: ~40%, ~12%, ~3% (1.0001^ticks) */
 const RANGE_TICKS: Record<RangePreset, number> = { wide: 3365, medium: 1133, tight: 296 }
-const POLL_MS = Math.max(5000, Number(import.meta.env.VITE_POLL_MS ?? 6000))
+const POLL_MS = Math.max(5000, Number(import.meta.env.VITE_POLL_MS ?? 10_000))
 const LOG_CHUNK = BigInt(Number(import.meta.env.VITE_LOG_CHUNK ?? 9000))
 /** how far back the activity feed looks on first load, in blocks */
 const LOOKBACK = BigInt(Number(import.meta.env.VITE_LOGS_LOOKBACK ?? 20000))
@@ -147,7 +147,10 @@ export class ChainEngine implements Engine {
     )
     e.issuerFeeBps = Number(await e.read(c.dep.issuer, c.abis.issuer, 'FEE_BPS', []))
     await e.refresh()
-    e.timer = window.setInterval(() => void e.refresh(), POLL_MS)
+    // do not poll a tab nobody is looking at: it only burns the shared RPC rate limit
+    e.timer = window.setInterval(() => {
+      if (!document.hidden) void e.refresh()
+    }, POLL_MS)
     return e
   }
 
